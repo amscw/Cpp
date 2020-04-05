@@ -16,8 +16,8 @@ enum class port_t : char {A = 'A', B = 'B', C = 'C', D = 'D', E = 'E', F = 'F'};
 template <port_t port, int pin> class pin_c
 {
 public:
-	static constexpr port_t PORT() { return port; }
-	static constexpr port_t PIN() { return pin; }
+	enum { NUMBER = pin };
+	static const port_t PORT{port};
 
 	static void Print() { std::cout << "P" << static_cast<char>(port) << pin ; }
 };
@@ -77,21 +77,29 @@ template<typename Head, typename... Args> struct getter<0, Head, Args...>
 	typedef typename tuple<Head, Args...>::value_type pin_type;
 };
 
-
-template<int I, typename Head, typename... Args>
-void Do(tuple<Head, Args...> t)
+struct ForeachCallback
 {
-	getter<I, Head, Args...>::pin_type::Print();
-}
+	// параметр необходим для вывода типов шаблона
+	template<int I, typename Head, typename... Args>
+	void operator()(tuple<Head, Args...>)
+    {
+		typedef typename getter<I, Head, Args...>::pin_type pin;
+
+    	// Выполняем любую работу с пином
+		pin::Print();
+    }
+};
+
+
 
 int main() {
-	std::cout << "!!!Hello World!!!" << std::endl; // prints !!!Hello World!!!
-	// пример обращения к третьему элементу кортежа
-	// AddrPins::base_type::base_type::value_type::Print(); // PC2
-
 	// getter<2, PA0, PB1, PC2, PC3>::pin_type::Print();
 
-	Do<2>(AddrPins());
+	ForeachCallback f;
+	f.operator()<2>(AddrPins());
+
+
+	// std::cout << "sizeof t = " << sizeof test << std::endl;
 
 	return 0;
 }
