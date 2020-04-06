@@ -9,10 +9,31 @@
 #include <iostream>
 
 /**
- * В качестве элементов кортежа будем использовать класс pin_c
+ * Вспомогательные типы для организации списков
+ */
+template <class T, class U>
+struct Typelist
+{
+	typedef T Head;
+	typedef U Tail;
+};
+
+class NullType{};
+
+/**
+ * Тип порт
  */
 enum class port_t : char {A = 'A', B = 'B', C = 'C', D = 'D', E = 'E', F = 'F'};
 
+template <port_t port>
+struct Port
+{
+	enum {PORT = static_cast<int>(port)};
+};
+
+/**
+ * Тип пин
+ */
 template <port_t port, int pin> class pin_c
 {
 public:
@@ -31,13 +52,28 @@ using PC1 = pin_c<port_t::C, 1>;
 using PC2 = pin_c<port_t::C, 2>;
 using PC3 = pin_c<port_t::C, 3>;
 
-class NullType{};
+/**
+ * Обертка для пина,содержащая номер пина в списке
+ */
 
+template <int pos, class pin>
+struct PW
+{
+	typedef pin Pin;
+	enum {POSITION = pos};
+};
+
+/**
+ * Типы для генерации списка пинов
+ */
 template<int Pos, typename T1 = NullType, typename T2 = NullType, typename T3 = NullType, typename T4 = NullType>
 struct MakePinList
 {
+private:
 	enum{PositionInList = Pos};
 	typedef typename MakePinList<Pos + 1, T2, T3, T4>::Result TailResult;
+public:
+	typedef Typelist<PW<Pos, T1>, TailResult> Result;
 };
 
 template<int Pos>
@@ -47,8 +83,35 @@ struct MakePinList<Pos/*, NullType, NullType, NullType, NullType*/>
 	enum{PositionInList = Pos};
 };
 
-typedef MakePinList<0, PA0, PB1, PC1, PC2>::TailResult PinList_c;
+/**
+ * Типы для генерации списка портов
+ */
+template <class TList> struct GetPorts;
 
+template <class Head, class Tail>
+struct GetPorts< Typelist<Head, Tail> >
+{
+private:
+	// запоминаем порт, к которому относится пин из PW
+	typedef typename Head::Pin::Port Port;	// Head = PW
+	// TailResult есть Result следующего инстанса
+	typedef typename GetPorts<Tail>::Result TailResult;
+public:
+	// Result текущего инстанса есть Typelist "откушенной" головы и
+	// остальной части списка
+	typedef Typelist<Port, TailResult> Result;
+};
+
+template <> struct GetPorts<NullType>
+{
+	typedef NullType Result;
+};
+
+/**
+ * Создаем список пинов и список портов
+ */
+typedef MakePinList<0, PA0, PB1, PC1, PC2>::Result PinList;
+typedef GetPorts<PinList> PortList;
 
 
 int main() {
