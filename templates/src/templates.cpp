@@ -7,13 +7,10 @@
 //============================================================================
 
 #include <iostream>
+#include "utils.hpp"
 
-/**
- * Вспомогательные типы для организации списков
- */
 template <class T, class U>
-struct Typelist
-{
+struct Typelist {
 	typedef T Head;
 	typedef U Tail;
 };
@@ -21,25 +18,18 @@ struct Typelist
 class NullType{};
 
 /**
- * Тип порт
+ * Тип порта
  */
 enum class port_t : char {A = 'A', B = 'B', C = 'C', D = 'D', E = 'E', F = 'F'};
+template <port_t port> struct Port { static const port_t Value{port}; };
 
-template <port_t port>
-struct Port
-{
-	enum {PORT = static_cast<int>(port)};
-};
 
-/**
- * Тип пин
- */
+
 template <port_t port, int pin> class pin_c
 {
 public:
 	enum { NUMBER = pin };
-	static const port_t PORT{port};
-
+	typedef Port<port> Port;
 	static void Print() { std::cout << "P" << static_cast<char>(port) << pin ; }
 };
 
@@ -53,18 +43,17 @@ using PC2 = pin_c<port_t::C, 2>;
 using PC3 = pin_c<port_t::C, 3>;
 
 /**
- * Обертка для пина,содержащая номер пина в списке
+ * Обёртка для задания номера позиции в списке
  */
-
-template <int pos, class pin>
+template <class pin_c, int Pos>
 struct PW
 {
-	typedef pin Pin;
-	enum {POSITION = pos};
+	typedef pin_c pin;
+	enum {Position = Pos};
 };
 
 /**
- * Типы для генерации списка пинов
+ * Шаблон, генерирующий список типов на основе Typelist
  */
 template<int Pos, typename T1 = NullType, typename T2 = NullType, typename T3 = NullType, typename T4 = NullType>
 struct MakePinList
@@ -72,33 +61,33 @@ struct MakePinList
 private:
 	enum{PositionInList = Pos};
 	typedef typename MakePinList<Pos + 1, T2, T3, T4>::Result TailResult;
+
 public:
-	typedef Typelist<PW<Pos, T1>, TailResult> Result;
+	typedef Typelist<PW<T1, PositionInList>, TailResult> Result;
 };
 
 template<int Pos>
-struct MakePinList<Pos/*, NullType, NullType, NullType, NullType*/>
+struct MakePinList<Pos, NullType, NullType, NullType, NullType>
 {
 	typedef NullType Result;
 	enum{PositionInList = Pos};
 };
 
 /**
- * Типы для генерации списка портов
+ * Шаблон обработки списка типов:
+ * формирует новый список Typelist на основе списка Typelist из аргумента
  */
+
 template <class TList> struct GetPorts;
 
 template <class Head, class Tail>
 struct GetPorts< Typelist<Head, Tail> >
 {
 private:
-	// запоминаем порт, к которому относится пин из PW
-	typedef typename Head::Pin::Port Port;	// Head = PW
-	// TailResult есть Result следующего инстанса
+	// запоминаем порт
+	typedef typename Head::pin::Port Port;	// Head = PW
 	typedef typename GetPorts<Tail>::Result TailResult;
 public:
-	// Result текущего инстанса есть Typelist "откушенной" головы и
-	// остальной части списка
 	typedef Typelist<Port, TailResult> Result;
 };
 
@@ -107,17 +96,18 @@ template <> struct GetPorts<NullType>
 	typedef NullType Result;
 };
 
-/**
- * Создаем список пинов и список портов
- */
 typedef MakePinList<0, PA0, PB1, PC1, PC2>::Result PinList;
-typedef GetPorts<PinList> PortList;
+typedef GetPorts<PinList>::Result PortList;
 
-
+// test utils
+typedef TypeList<int, unsigned int, signed int> Ints;
+typedef TypeList<float, double, long double> Doubles;
 
 int main() {
-
-
-
+	std::cout << "Ints is empty: " << std::boolalpha << IsEmpty<Ints>::value << std::endl;
+	std::cout << "EmptyTypeList is empty: " << std::boolalpha << IsEmpty<EmptyTypeList>::value << std::endl;
+	std::cout << "Doubles contains int: " << std::boolalpha << Contains<int, Doubles>::value << std::endl;
+	std::cout << "Doubles contains float: " << std::boolalpha << Contains<float, Doubles>::value << std::endl;
+	std::cout << "Length of Ints = " << Length<Ints>::value << std::endl;
 	return 0;
 }
